@@ -101,41 +101,33 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = context.user_data.get("lang", "uz")
 
     if text.startswith("http"):
-        await update.message.reply_text(TEXTS[lang]["downloading"])
 
-        ydl_opts = {
-            "format": "best[height<=720]",
-            "outtmpl": "video_%(id)s.%(ext)s",
-            "quiet": True,
-            "noplaylist": True,
-            "concurrent_fragment_downloads": 5,
-            "nocheckcertificate": True,
-        }
+    await update.message.reply_text(TEXTS[lang]["downloading"])
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(text, download=True)
-                filename = ydl.prepare_filename(info)
+    ydl_opts = {
+        "format": "best",
+        "outtmpl": "video_%(id)s.%(ext)s",
+        "quiet": True,
+        "noplaylist": True,
+        "nocheckcertificate": True
+    }
 
-            context.user_data["last_url"] = text
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(text, download=True)
+            filename = ydl.prepare_filename(info)
 
-            kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton(TEXTS[lang]["download_song"], callback_data="get_audio")],
-                [InlineKeyboardButton(TEXTS[lang]["add_group"],
-                 url=f"https://t.me/{context.bot.username}?startgroup=true")]
-            ])
+        await update.message.reply_video(
+            video=open(filename, "rb"),
+            caption=TEXTS[lang]["done"]
+        )
 
-            await update.message.reply_video(
-                video=open(filename, "rb"),
-                caption=TEXTS[lang]["done"],
-                reply_markup=kb
-            )
+        os.remove(filename)
 
-            os.remove(filename)
+    except Exception as e:
+        await update.message.reply_text(TEXTS[lang]["error"])
 
-        except:
-            await update.message.reply_text(TEXTS[lang]["error"])
-        return
+    return
 
     await update.message.reply_text(TEXTS[lang]["searching"])
 
