@@ -28,9 +28,10 @@ from telegram.ext import (
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
+# ================= TEXTS =================
 TEXTS = {
     "uz": {
-        "start": "🇺🇿 O‘zingizga qulay tilni tanlang",
+        "start": "🌍 O‘zingizga qulay tilni tanlang",
         "welcome": "🎬 Video link yuboring yoki 🎵 qo‘shiq nomini yozing",
         "searching": "🔎 Qidirilmoqda...",
         "choose": "🎧 Qo‘shiqni tanlang:\n\n",
@@ -38,16 +39,49 @@ TEXTS = {
         "done": "✅ Yuklab olindi",
         "error": "❌ Xatolik yuz berdi",
         "cancel": "❌ Bekor qilish",
+        "download_song": "🎵 Qo‘shiqni yuklab olish",
+        "add_group": "➕ Guruhga qo‘shish",
+    },
+    "ru": {
+        "start": "🌍 Выберите удобный язык",
+        "welcome": "🎬 Отправьте ссылку или 🎵 название песни",
+        "searching": "🔎 Поиск...",
+        "choose": "🎧 Выберите песню:\n\n",
+        "downloading": "⏳ Загрузка...",
+        "done": "✅ Загружено",
+        "error": "❌ Ошибка",
+        "cancel": "❌ Отмена",
+        "download_song": "🎵 Скачать песню",
+        "add_group": "➕ Добавить в группу",
+    },
+    "en": {
+        "start": "🌍 Choose your preferred language",
+        "welcome": "🎬 Send a link or 🎵 song name",
+        "searching": "🔎 Searching...",
+        "choose": "🎧 Choose a song:\n\n",
+        "downloading": "⏳ Downloading...",
+        "done": "✅ Downloaded",
+        "error": "❌ Error",
+        "cancel": "❌ Cancel",
+        "download_song": "🎵 Download song",
+        "add_group": "➕ Add to group",
     }
 }
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🇺🇿 O‘zbek", callback_data="lang_uz")]
+        [
+            InlineKeyboardButton("🇺🇿 O‘zbek", callback_data="lang_uz"),
+            InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
+            InlineKeyboardButton("🇬🇧 English", callback_data="lang_en"),
+        ]
     ])
+
     await update.message.reply_text(
-        "🇺🇿 Tilni tanlang",
+        "🌍 O‘zingizga qulay tilni tanlang\n\n"
+        "🌍 Выберите удобный язык\n\n"
+        "🌍 Choose your preferred language",
         reply_markup=kb
     )
 
@@ -55,13 +89,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-    context.user_data["lang"] = "uz"
-    await q.edit_message_text(TEXTS["uz"]["welcome"])
+
+    lang = q.data.split("_")[1]
+    context.user_data["lang"] = lang
+
+    await q.edit_message_text(TEXTS[lang]["welcome"])
 
 # ================= TEXT HANDLER =================
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
-    lang = "uz"
+    lang = context.user_data.get("lang", "uz")
 
     # ===== LINK BO'LSA =====
     if text.startswith("http"):
@@ -81,7 +118,18 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["last_url"] = text
 
             kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🎵 Faqat audio", callback_data="get_audio")]
+                [
+                    InlineKeyboardButton(
+                        TEXTS[lang]["download_song"],
+                        callback_data="get_audio"
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        TEXTS[lang]["add_group"],
+                        url=f"https://t.me/{context.bot.username}?startgroup=true"
+                    )
+                ]
             ])
 
             await update.message.reply_video(
@@ -139,7 +187,7 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     url = songs[index]["url"]
 
-    await q.message.reply_text("⏳ Yuklanmoqda...")
+    await q.message.reply_text(TEXTS[context.user_data.get("lang","uz")]["downloading"])
 
     ydl_opts = {
         "format": "bestaudio[ext=m4a]/bestaudio",
@@ -163,11 +211,13 @@ async def get_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
 
+    lang = context.user_data.get("lang", "uz")
     url = context.user_data.get("last_url")
+
     if not url:
         return
 
-    await q.message.reply_text("⏳ Yuklanmoqda...")
+    await q.message.reply_text(TEXTS[lang]["downloading"])
 
     ydl_opts = {
         "format": "bestaudio[ext=m4a]/bestaudio",
@@ -185,7 +235,8 @@ async def get_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= CANCEL =================
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
-    await update.callback_query.message.reply_text(TEXTS["uz"]["welcome"])
+    lang = context.user_data.get("lang", "uz")
+    await update.callback_query.message.reply_text(TEXTS[lang]["welcome"])
 
 # ================= MAIN =================
 def main():
