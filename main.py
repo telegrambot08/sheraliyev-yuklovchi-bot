@@ -100,7 +100,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     lang = context.user_data.get("lang", "uz")
 
-    # ===== LINK BO'LSA =====
     if text.startswith("http"):
         await update.message.reply_text(TEXTS[lang]["downloading"])
 
@@ -118,18 +117,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["last_url"] = text
 
             kb = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        TEXTS[lang]["download_song"],
-                        callback_data="get_audio"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        TEXTS[lang]["add_group"],
-                        url=f"https://t.me/{context.bot.username}?startgroup=true"
-                    )
-                ]
+                [InlineKeyboardButton(TEXTS[lang]["download_song"], callback_data="get_audio")],
+                [InlineKeyboardButton(TEXTS[lang]["add_group"],
+                 url=f"https://t.me/{context.bot.username}?startgroup=true")]
             ])
 
             await update.message.reply_video(
@@ -144,7 +134,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(TEXTS[lang]["error"])
         return
 
-    # ===== QO'SHIQ QIDIRISH =====
     await update.message.reply_text(TEXTS[lang]["searching"])
 
     try:
@@ -186,8 +175,9 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     url = songs[index]["url"]
+    lang = context.user_data.get("lang","uz")
 
-    await q.message.reply_text(TEXTS[context.user_data.get("lang","uz")]["downloading"])
+    loading_msg = await q.message.reply_text(TEXTS[lang]["downloading"])
 
     ydl_opts = {
         "format": "bestaudio[ext=m4a]/bestaudio",
@@ -204,6 +194,7 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
         title=info.get("title")
     )
 
+    await loading_msg.delete()
     os.remove(filename)
 
 # ================= AUDIO FROM VIDEO =================
