@@ -101,35 +101,38 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = context.user_data.get("lang", "uz")
 
     if text.startswith("http"):
+        await update.message.reply_text(TEXTS[lang]["downloading"])
 
-    await update.message.reply_text(TEXTS[lang]["downloading"])
-
-    ydl_opts = {
-        "format": "best",
-        "outtmpl": "video_%(id)s.%(ext)s",
-        "quiet": True,
-        "noplaylist": True,
-        "nocheckcertificate": True,
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0"
+        ydl_opts = {
+            "format": "best[height<=720]",
+            "outtmpl": "video_%(id)s.%(ext)s",
+            "quiet": True,
         }
-    }
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(text, download=True)
-            filename = ydl.prepare_filename(info)
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(text, download=True)
+                filename = ydl.prepare_filename(info)
 
-        await update.message.reply_video(
-            video=open(filename, "rb"),
-            caption=TEXTS[lang]["done"]
-        )
+            context.user_data["last_url"] = text
 
-        os.remove(filename)
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton(TEXTS[lang]["download_song"], callback_data="get_audio")],
+                [InlineKeyboardButton(TEXTS[lang]["add_group"],
+                 url=f"https://t.me/{context.bot.username}?startgroup=true")]
+            ])
 
-    except Exception as e:
-        await update.message.reply_text("❌ Yuklab bo‘lmadi")
-    return
+            await update.message.reply_video(
+                video=open(filename, "rb"),
+                caption=TEXTS[lang]["done"],
+                reply_markup=kb
+            )
+
+            os.remove(filename)
+
+        except:
+            await update.message.reply_text(TEXTS[lang]["error"])
+        return
 
     await update.message.reply_text(TEXTS[lang]["searching"])
 
