@@ -107,6 +107,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "format": "best[height<=720]",
             "outtmpl": "video_%(id)s.%(ext)s",
             "quiet": True,
+            "noplaylist": True,
+            "concurrent_fragment_downloads": 5,
+            "nocheckcertificate": True,
         }
 
         try:
