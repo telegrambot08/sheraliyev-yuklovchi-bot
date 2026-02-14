@@ -31,36 +31,36 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 # ================= TEXTS =================
 TEXTS = {
     "uz": {
-        "start": "🌍 O‘zingizga qulay tilni tanlang",
+        "start": "🇺🇿 O‘zingizga qulay tilni tanlang",
         "welcome": "🎬 Video link yuboring yoki 🎵 qo‘shiq nomini yozing",
-        "searching": "🔎 Qidirilmoqda...",
+        "searching": "🔎",
         "choose": "🎧 Qo‘shiqni tanlang:\n\n",
-        "downloading": "⏳ Yuklanmoqda...",
-        "done": "✅ Yuklab olindi",
+        "downloading": "⏳",
+        "done": "@sheraliyev_yuklovchi_bot orqali yuklab olindi",
         "error": "❌ Xatolik yuz berdi",
         "cancel": "❌ Bekor qilish",
         "download_song": "🎵 Qo‘shiqni yuklab olish",
         "add_group": "➕ Guruhga qo‘shish",
     },
     "ru": {
-        "start": "🌍 Выберите удобный язык",
+        "start": "🇷🇺 Выберите удобный язык",
         "welcome": "🎬 Отправьте ссылку или 🎵 название песни",
-        "searching": "🔎 Поиск...",
+        "searching": "🔎",
         "choose": "🎧 Выберите песню:\n\n",
-        "downloading": "⏳ Загрузка...",
-        "done": "✅ Загружено",
+        "downloading": "⏳",
+        "done": "Скачано через @sheraliyev_yuklovchi_bot",
         "error": "❌ Ошибка",
         "cancel": "❌ Отмена",
         "download_song": "🎵 Скачать песню",
         "add_group": "➕ Добавить в группу",
     },
     "en": {
-        "start": "🌍 Choose your preferred language",
+        "start": "🇬🇧 Choose your preferred language",
         "welcome": "🎬 Send a link or 🎵 song name",
-        "searching": "🔎 Searching...",
+        "searching": "🔎",
         "choose": "🎧 Choose a song:\n\n",
-        "downloading": "⏳ Downloading...",
-        "done": "✅ Downloaded",
+        "downloading": "⏳",
+        "done": "Downloaded via @sheraliyev_yuklovchi_bot",
         "error": "❌ Error",
         "cancel": "❌ Cancel",
         "download_song": "🎵 Download song",
@@ -79,9 +79,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
 
     await update.message.reply_text(
-        "🌍 O‘zingizga qulay tilni tanlang\n\n"
-        "🌍 Выберите удобный язык\n\n"
-        "🌍 Choose your preferred language",
+        "🇺🇿 O‘zingizga qulay tilni tanlang\n\n"
+        "🇷🇺 Выберите удобный язык\n\n"
+        "🇬🇧 Choose your preferred language",
         reply_markup=kb
     )
 
