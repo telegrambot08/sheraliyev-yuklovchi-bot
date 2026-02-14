@@ -109,7 +109,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "outtmpl": "video_%(id)s.%(ext)s",
         "quiet": True,
         "noplaylist": True,
-        "nocheckcertificate": True
+        "nocheckcertificate": True,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0"
+        }
     }
 
     try:
@@ -125,8 +128,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         os.remove(filename)
 
     except Exception as e:
-        await update.message.reply_text(TEXTS[lang]["error"])
-
+        await update.message.reply_text("❌ Yuklab bo‘lmadi")
     return
 
     await update.message.reply_text(TEXTS[lang]["searching"])
