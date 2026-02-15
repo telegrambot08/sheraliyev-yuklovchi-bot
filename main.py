@@ -16,6 +16,7 @@ Thread(target=run).start()
 # ================= IMPORTS =================
 import os
 import yt_dlp
+import sqlite3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -27,6 +28,19 @@ from telegram.ext import (
 )
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+# ================= DATABASE =================
+conn = sqlite3.connect("users.db", check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY
+)
+""")
+conn.commit()
+
+ADMIN_ID = 7663731929
 
 # ================= TEXTS =================
 TEXTS = {
@@ -70,6 +84,12 @@ TEXTS = {
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # USERNI BAZAGA SAQLASH
+    user_id = update.effective_user.id
+    cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
+    conn.commit()
+
     kb = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🇺🇿 O‘zbek", callback_data="lang_uz"),
@@ -229,11 +249,24 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = context.user_data.get("lang", "uz")
     await update.callback_query.message.reply_text(TEXTS[lang]["welcome"])
 
+# ================= STATS (ADMIN) =================
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    cursor.execute("SELECT COUNT(*) FROM users")
+    total = cursor.fetchone()[0]
+
+    await update.message.reply_text(
+        f"📊 Bot statistikasi\n\n👥 Jami foydalanuvchilar: {total}"
+    )
+
 # ================= MAIN =================
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CallbackQueryHandler(set_language, pattern="^lang_"))
     app.add_handler(CallbackQueryHandler(download_song, pattern="^song_"))
     app.add_handler(CallbackQueryHandler(get_audio, pattern="^get_audio$"))
