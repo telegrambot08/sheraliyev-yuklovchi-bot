@@ -15,7 +15,6 @@ Thread(target=run).start()
 
 # ================= IMPORTS =================
 import os
-import json
 import yt_dlp
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -28,20 +27,6 @@ from telegram.ext import (
 )
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
-# ================= USER COUNTER =================
-USERS_FILE = "users.json"
-
-def load_users():
-    try:
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return []
-
-def save_users(users):
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f)
 
 # ================= TEXTS =================
 TEXTS = {
@@ -85,12 +70,6 @@ TEXTS = {
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    users = load_users()
-    if user_id not in users:
-        users.append(user_id)
-        save_users(users)
-
     kb = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🇺🇿 O‘zbek", callback_data="lang_uz"),
@@ -105,11 +84,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🇬🇧 Choose your preferred language",
         reply_markup=kb
     )
-
-# ================= USERS COMMAND =================
-async def users_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    users = load_users()
-    await update.message.reply_text(f"👥 Foydalanuvchilar soni: {len(users)} ta")
 
 # ================= LANGUAGE =================
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -260,7 +234,6 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("users", users_count))
     app.add_handler(CallbackQueryHandler(set_language, pattern="^lang_"))
     app.add_handler(CallbackQueryHandler(download_song, pattern="^song_"))
     app.add_handler(CallbackQueryHandler(get_audio, pattern="^get_audio$"))
