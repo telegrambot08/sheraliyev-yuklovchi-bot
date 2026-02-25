@@ -35,7 +35,7 @@ cursor = conn.cursor()
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY
+user_id INTEGER PRIMARY KEY
 )
 """)
 conn.commit()
@@ -44,42 +44,42 @@ ADMIN_ID = 7663731929
 
 # ================= TEXTS =================
 TEXTS = {
-    "uz": {
-        "start": "🇺🇿 O‘zingizga qulay tilni tanlang",
-        "welcome": "🎬 Video link yuboring yoki 🎵 qo‘shiq nomini yozing",
-        "searching": "🔎",
-        "choose": "🎧 Qo‘shiqni tanlang:\n\n",
-        "downloading": "⏳",
-        "done": "@sheraliyev_yuklovchi_bot orqali yuklab olindi",
-        "error": "❌ Xatolik yuz berdi",
-        "cancel": "❌ Bekor qilish",
-        "download_song": "🎵 Qo‘shiqni yuklab olish",
-        "add_group": "➕ Guruhga qo‘shish",
-    },
-    "ru": {
-        "start": "🇷🇺 Выберите удобный язык",
-        "welcome": "🎬 Отправьте ссылку или 🎵 название песни",
-        "searching": "🔎",
-        "choose": "🎧 Выберите песню:\n\n",
-        "downloading": "⏳",
-        "done": "Скачано через @sheraliyev_yuklovchi_bot",
-        "error": "❌ Ошибка",
-        "cancel": "❌ Отмена",
-        "download_song": "🎵 Скачать песню",
-        "add_group": "➕ Добавить в группу",
-    },
-    "en": {
-        "start": "🇬🇧 Choose your preferred language",
-        "welcome": "🎬 Send a link or 🎵 song name",
-        "searching": "🔎",
-        "choose": "🎧 Choose a song:\n\n",
-        "downloading": "⏳",
-        "done": "Downloaded via @sheraliyev_yuklovchi_bot",
-        "error": "❌ Error",
-        "cancel": "❌ Cancel",
-        "download_song": "🎵 Download song",
-        "add_group": "➕ Add to group",
-    }
+"uz": {
+"start": "🇺🇿 O‘zingizga qulay tilni tanlang",
+"welcome": "🎬 Video link yuboring yoki 🎵 qo‘shiq nomini yozing",
+"searching": "🔎",
+"choose": "🎧 Qo‘shiqni tanlang:\n\n",
+"downloading": "⏳",
+"done": "@sheraliyev_yuklovchi_bot orqali yuklab olindi",
+"error": "❌ Xatolik yuz berdi",
+"cancel": "❌ Bekor qilish",
+"download_song": "🎵 Qo‘shiqni yuklab olish",
+"add_group": "➕ Guruhga qo‘shish",
+},
+"ru": {
+"start": "🇷🇺 Выберите удобный язык",
+"welcome": "🎬 Отправьте ссылку или 🎵 название песни",
+"searching": "🔎",
+"choose": "🎧 Выберите песню:\n\n",
+"downloading": "⏳",
+"done": "Скачано через @sheraliyev_yuklovchi_bot",
+"error": "❌ Ошибка",
+"cancel": "❌ Отмена",
+"download_song": "🎵 Скачать песню",
+"add_group": "➕ Добавить в группу",
+},
+"en": {
+"start": "🇬🇧 Choose your preferred language",
+"welcome": "🎬 Send a link or 🎵 song name",
+"searching": "🔎",
+"choose": "🎧 Choose a song:\n\n",
+"downloading": "⏳",
+"done": "Downloaded via @sheraliyev_yuklovchi_bot",
+"error": "❌ Error",
+"cancel": "❌ Cancel",
+"download_song": "🎵 Download song",
+"add_group": "➕ Add to group",
+}
 }
 
 # ================= START =================
@@ -116,7 +116,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     lang = context.user_data.get("lang", "uz")
 
+    # ===== URL =====
     if text.startswith("http"):
+
         loading_msg = await update.message.reply_text(TEXTS[lang]["downloading"])
 
         ydl_opts = {
@@ -126,6 +128,34 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
 
         try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(text, download=False)
+
+            # ===== CAROUSEL POST =====
+            if "entries" in info:
+                media = []
+                files = []
+
+                for entry in info["entries"]:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        data = ydl.extract_info(entry["url"], download=True)
+                        filename = ydl.prepare_filename(data)
+                        files.append(filename)
+
+                        if filename.endswith((".jpg", ".jpeg", ".png")):
+                            media.append(InputMediaPhoto(open(filename, "rb")))
+                        else:
+                            media.append(InputMediaVideo(open(filename, "rb")))
+
+                await update.message.reply_media_group(media)
+
+                for f in files:
+                    os.remove(f)
+
+                await loading_msg.delete()
+                return
+
+            # ===== SINGLE VIDEO =====
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(text, download=True)
                 filename = ydl.prepare_filename(info)
@@ -152,6 +182,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(TEXTS[lang]["error"])
         return
 
+    # ===== SEARCH =====
     search_msg = await update.message.reply_text(TEXTS[lang]["searching"])
 
     try:
@@ -198,8 +229,7 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     loading_msg = await q.message.reply_text(TEXTS[lang]["downloading"])
 
-    # 🔥 TUZATILDI
-    if song.get("url", "").startswith("http"):
+    if song.get("url","").startswith("http"):
         url = song["url"]
     else:
         url = f"https://www.youtube.com/watch?v={song['id']}"
@@ -210,22 +240,13 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "quiet": True,
     }
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info)
 
-        await q.message.reply_audio(
-            audio=open(filename, "rb"),
-            title=info.get("title")
-        )
-
-        os.remove(filename)
-        await loading_msg.delete()
-
-    except:
-        await loading_msg.delete()
-        await q.message.reply_text(TEXTS[lang]["error"])
+    await q.message.reply_audio(audio=open(filename, "rb"), title=info.get("title"))
+    await loading_msg.delete()
+    os.remove(filename)
 
 # ================= AUDIO FROM VIDEO =================
 async def get_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -240,7 +261,7 @@ async def get_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     loading_msg = await q.message.reply_text(TEXTS[lang]["downloading"])
 
     ydl_opts = {
-        "format": "bestaudio",
+        "format": "bestaudio/best",
         "outtmpl": "video_audio.%(ext)s",
         "quiet": True,
     }
