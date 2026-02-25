@@ -116,7 +116,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     lang = context.user_data.get("lang", "uz")
 
-    # ================= URL =================
     if text.startswith("http"):
         loading_msg = await update.message.reply_text(TEXTS[lang]["downloading"])
 
@@ -127,34 +126,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
 
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(text, download=False)
-
-            # ===== CAROUSEL (Instagram / TikTok / Pinterest) =====
-            if "entries" in info:
-                media_group = []
-                files = []
-
-                for entry in info["entries"]:
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        data = ydl.extract_info(entry["url"], download=True)
-                        filename = ydl.prepare_filename(data)
-                        files.append(filename)
-
-                        if filename.endswith((".jpg", ".jpeg", ".png")):
-                            media_group.append(InputMediaPhoto(media=open(filename, "rb")))
-                        else:
-                            media_group.append(InputMediaVideo(media=open(filename, "rb")))
-
-                await update.message.reply_media_group(media_group)
-
-                for f in files:
-                    os.remove(f)
-
-                await loading_msg.delete()
-                return
-
-            # ===== SINGLE VIDEO =====
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(text, download=True)
                 filename = ydl.prepare_filename(info)
@@ -181,7 +152,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(TEXTS[lang]["error"])
         return
 
-    # ================= SEARCH =================
     search_msg = await update.message.reply_text(TEXTS[lang]["searching"])
 
     try:
@@ -193,7 +163,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     entries = result.get("entries", [])[:10]
-
     await search_msg.delete()
 
     if not entries:
@@ -224,24 +193,39 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not songs:
         return
 
-    url = songs[index]["url"]
+    song = songs[index]
     lang = context.user_data.get("lang","uz")
 
     loading_msg = await q.message.reply_text(TEXTS[lang]["downloading"])
 
+    # 🔥 TUZATILDI
+    if song.get("url", "").startswith("http"):
+        url = song["url"]
+    else:
+        url = f"https://www.youtube.com/watch?v={song['id']}"
+
     ydl_opts = {
-        "format": "bestaudio",
+        "format": "bestaudio/best",
         "outtmpl": "song_%(id)s.%(ext)s",
         "quiet": True,
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
 
-    await q.message.reply_audio(audio=open(filename, "rb"), title=info.get("title"))
-    await loading_msg.delete()
-    os.remove(filename)
+        await q.message.reply_audio(
+            audio=open(filename, "rb"),
+            title=info.get("title")
+        )
+
+        os.remove(filename)
+        await loading_msg.delete()
+
+    except:
+        await loading_msg.delete()
+        await q.message.reply_text(TEXTS[lang]["error"])
 
 # ================= AUDIO FROM VIDEO =================
 async def get_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
