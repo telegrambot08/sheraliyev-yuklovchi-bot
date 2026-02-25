@@ -17,7 +17,7 @@ Thread(target=run).start()
 import os
 import yt_dlp
 import sqlite3
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -84,8 +84,6 @@ TEXTS = {
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    # USERNI BAZAGA SAQLASH
     user_id = update.effective_user.id
     cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     conn.commit()
@@ -109,10 +107,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-
     lang = q.data.split("_")[1]
     context.user_data["lang"] = lang
-
     await q.edit_message_text(TEXTS[lang]["welcome"])
 
 # ================= TEXT HANDLER =================
@@ -120,16 +116,45 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     lang = context.user_data.get("lang", "uz")
 
+    # ================= URL =================
     if text.startswith("http"):
-        await update.message.reply_text(TEXTS[lang]["downloading"])
+        loading_msg = await update.message.reply_text(TEXTS[lang]["downloading"])
 
         ydl_opts = {
-            "format": "best[height<=720]",
-            "outtmpl": "video_%(id)s.%(ext)s",
+            "format": "best",
+            "outtmpl": "file_%(id)s.%(ext)s",
             "quiet": True,
         }
 
         try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(text, download=False)
+
+            # ===== CAROUSEL (Instagram / TikTok / Pinterest) =====
+            if "entries" in info:
+                media_group = []
+                files = []
+
+                for entry in info["entries"]:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        data = ydl.extract_info(entry["url"], download=True)
+                        filename = ydl.prepare_filename(data)
+                        files.append(filename)
+
+                        if filename.endswith((".jpg", ".jpeg", ".png")):
+                            media_group.append(InputMediaPhoto(media=open(filename, "rb")))
+                        else:
+                            media_group.append(InputMediaVideo(media=open(filename, "rb")))
+
+                await update.message.reply_media_group(media_group)
+
+                for f in files:
+                    os.remove(f)
+
+                await loading_msg.delete()
+                return
+
+            # ===== SINGLE VIDEO =====
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(text, download=True)
                 filename = ydl.prepare_filename(info)
@@ -149,21 +174,27 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             os.remove(filename)
+            await loading_msg.delete()
 
         except:
+            await loading_msg.delete()
             await update.message.reply_text(TEXTS[lang]["error"])
         return
 
-    await update.message.reply_text(TEXTS[lang]["searching"])
+    # ================= SEARCH =================
+    search_msg = await update.message.reply_text(TEXTS[lang]["searching"])
 
     try:
         with yt_dlp.YoutubeDL({"quiet": True, "extract_flat": True}) as ydl:
             result = ydl.extract_info(f"ytsearch10:{text}", download=False)
     except:
+        await search_msg.delete()
         await update.message.reply_text(TEXTS[lang]["error"])
         return
 
     entries = result.get("entries", [])[:10]
+
+    await search_msg.delete()
 
     if not entries:
         await update.message.reply_text(TEXTS[lang]["error"])
@@ -190,7 +221,6 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     songs = context.user_data.get("songs")
     index = int(q.data.split("_")[1])
-
     if not songs:
         return
 
@@ -200,7 +230,7 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
     loading_msg = await q.message.reply_text(TEXTS[lang]["downloading"])
 
     ydl_opts = {
-        "format": "bestaudio[ext=m4a]/bestaudio",
+        "format": "bestaudio",
         "outtmpl": "song_%(id)s.%(ext)s",
         "quiet": True,
     }
@@ -209,11 +239,7 @@ async def download_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
 
-    await q.message.reply_audio(
-        audio=open(filename, "rb"),
-        title=info.get("title")
-    )
-
+    await q.message.reply_audio(audio=open(filename, "rb"), title=info.get("title"))
     await loading_msg.delete()
     os.remove(filename)
 
@@ -224,14 +250,13 @@ async def get_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     lang = context.user_data.get("lang", "uz")
     url = context.user_data.get("last_url")
-
     if not url:
         return
 
-    await q.message.reply_text(TEXTS[lang]["downloading"])
+    loading_msg = await q.message.reply_text(TEXTS[lang]["downloading"])
 
     ydl_opts = {
-        "format": "bestaudio[ext=m4a]/bestaudio",
+        "format": "bestaudio",
         "outtmpl": "video_audio.%(ext)s",
         "quiet": True,
     }
@@ -241,6 +266,7 @@ async def get_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         filename = ydl.prepare_filename(info)
 
     await q.message.reply_audio(audio=open(filename, "rb"))
+    await loading_msg.delete()
     os.remove(filename)
 
 # ================= CANCEL =================
@@ -249,7 +275,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = context.user_data.get("lang", "uz")
     await update.callback_query.message.reply_text(TEXTS[lang]["welcome"])
 
-# ================= STATS (ADMIN) =================
+# ================= STATS =================
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
